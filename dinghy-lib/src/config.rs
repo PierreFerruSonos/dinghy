@@ -118,31 +118,27 @@ impl PlatformConfiguration {
     }
 
     pub fn env(&self) -> Vec<(String, String)> {
-        let mut env = self
-            .env
-            .as_ref()
-            .map(|it| {
-                it.iter()
-                    .map(|(key, value)| (key.to_string(), value.to_string()))
-                    .collect_vec()
-            })
-            .unwrap_or(vec![]);
+        let Some(env) = self.env.as_ref() else {
+            return vec![];
+        };
 
         if let Some(sysroot) = self.sysroot.as_ref() {
-            let flags = ["CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS"];
-
-            '_flags: for flag in flags {
-                for (key, value) in &mut env {
-                    if key == flag {
-                        value.push_str(format!(" --sysroot={sysroot}").as_str());
-                        continue '_flags;
-                    }
-                }
-                env.push((flag.to_string(), format!("--sysroot={sysroot}")));
+            let mut env = env.clone();
+            for flag in ["CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS"] {
+                let sr_argument = format!("--sysroot={sysroot}");
+                env.entry(flag.to_string())
+                    .and_modify(|value| {
+                        value.push(' ');
+                        value.push_str(&sr_argument);
+                    })
+                    .or_insert(sr_argument);
             }
+            env.into_iter().collect_vec()
+        } else {
+            env.iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect()
         }
-
-        env
     }
 }
 
